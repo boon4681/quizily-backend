@@ -15,6 +15,11 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "mongodb",
     }),
+    advanced:{
+        database: {
+            generateId: false
+        }
+    }
 });
 
 export type AuthUserData = typeof auth.$Infer.Session.user

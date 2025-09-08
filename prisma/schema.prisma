@@ -5,70 +5,120 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+enum QuestionType {
+    MULTIPLE_CHOICE
+    TRUE_FALSE
+}
+
+enum QuestionDifficulty {
+    BEGINNER
+    INTERMEDIATE
+    EXPERT
 }
 
 model User {
-  id            String    @id @map("_id")
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+    id            String    @id @default(auto()) @map("_id") @db.ObjectId
+    name          String
+    email         String
+    emailVerified Boolean   @default(false)
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @default(now()) @updatedAt
+    sessions      Session[]
+    accounts      Account[]
+    quiz          Quiz[]
 
-  @@unique([email])
-  @@map("user")
+    @@unique([email])
+    @@map("user")
 }
 
 model Session {
-  id        String   @id @map("_id")
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    expiresAt DateTime
+    token     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String   @db.ObjectId
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
-  @@map("session")
+    @@unique([token])
+    @@map("session")
 }
 
 model Account {
-  id                    String    @id @map("_id")
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+    id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+    accountId             String
+    providerId            String
+    userId                String    @db.ObjectId
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
 
-  @@map("account")
+    @@map("account")
 }
 
 model Verification {
-  id         String   @id @map("_id")
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
 
-  @@map("verification")
+    @@map("verification")
+}
+
+model Quiz {
+    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    title       String
+    description String?
+    createdAt   DateTime @default(now())
+
+    ownerId String @db.ObjectId
+    owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+    questions Question[]
+
+    @@map("quiz")
+}
+
+model Question {
+    id     String       @id @default(auto()) @map("_id") @db.ObjectId
+    text   String
+    type   QuestionType
+    order  Int
+    quizId String       @db.ObjectId
+    quiz   Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+    options QuestionOption[]
+
+    @@map("question")
+}
+
+model QuestionOption {
+    id        String  @id @default(auto()) @map("_id") @db.ObjectId
+    text      String
+    isCorrect Boolean @default(false)
+
+    questionId String   @db.ObjectId
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+    @@map("question-option")
 }
