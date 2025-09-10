@@ -15,7 +15,9 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "mongodb",
     }),
-    advanced:{
+    trustedOrigins: ["*"],
+    advanced: {
+        cookiePrefix: "quizily.app",
         database: {
             generateId: false
         }
