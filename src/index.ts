@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { APIRoutes } from './routes/index.js'
 import { auth } from '$auth.config'
+import quizzesRoute from './routes/quizzes.js'
 
 const app = new Hono()
 
@@ -10,6 +11,7 @@ app.get('/', (c) => {
 })
 
 app.route("/api", APIRoutes)
+app.route('/api/quizzes', quizzesRoute)
 
 serve({
     fetch: app.fetch,

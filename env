@@ -1,0 +1,4 @@
+DATABASE_URL="mongodb://mongo:thispasswordistoostrong@168.119.152.77:36379/quizily?authSource=admin&directConnection=true"
+BETTER_AUTH_SECRET="this-is-super-secret-120"
+BETTER_AUTH_URL="http://localhost:3000"
+GEMINI_API_KEY="AIzaSyAMNJfKpyOT4BMEiZX3OhHY4WfGBQeMrYI"
