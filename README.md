@@ -2,12 +2,12 @@
 ### Prerequisites
 - Set `GEMINI_API_KEY` in .env
 
-```
 .env example
-- DATABASE_URL=""
-- BETTER_AUTH_SECRET=""
-- BETTER_AUTH_URL="http://localhost:3000"
-- GEMINI_API_KEY=""
+```
+DATABASE_URL=""
+BETTER_AUTH_SECRET=""
+BETTER_AUTH_URL="http://localhost:3000"
+GEMINI_API_KEY=""
 ```
 
 ### Generate a quiz (PDF upload)
