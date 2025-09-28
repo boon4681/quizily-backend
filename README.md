@@ -2,18 +2,20 @@
 ### Prerequisites
 - Set `GEMINI_API_KEY` in .env
 
-### .env example
-- DATABASE_URL=
-- BETTER_AUTH_SECRET=
-- BETTER_AUTH_URL="http://localhost:3000"
-- GEMINI_API_KEY=""
+.env example
+```
+DATABASE_URL=""
+BETTER_AUTH_SECRET=""
+BETTER_AUTH_URL="http://localhost:3000"
+GEMINI_API_KEY=""
+```
 
 ### Generate a quiz (PDF upload)
 title กับ description มัน gen ให้เอง เขียนแค่ option ด้านล่างพอ 
 
 ### Notes
-- เลือกระดับความยากได้ `BEGINNER`, `INTERMEDIATE`, `EXPERT`.
-- จำนวนคำถามก็ระบุได้ `questionCount` controls number of questions (1–50).
+- เลือกระดับความยากได้ `BEGINNER`, `INTERMEDIATE`, `EXPERT`
+- จำนวนคำถามก็ระบุได้ `questionCount`
 - input เยอะใช้เวลานานนิดนึง
 
 ```
