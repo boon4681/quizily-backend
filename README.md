@@ -11,10 +11,11 @@ GEMINI_API_KEY=""
 ```
 
 ### Generate a quiz (PDF upload)
-title กับ description มัน gen ให้เอง เขียนแค่ option ด้านล่างพอ 
+title กับ description มัน gen ให้เอง เขียนแค่ option ด้านล่างพอ
 
 ### Notes
 - เลือกระดับความยากได้ `BEGINNER`, `INTERMEDIATE`, `EXPERT`
+- เลือกประเภทคำถามได้ `questionType` (`MULTIPLE_CHOICE` หรือ `TRUE_FALSE`)
 - จำนวนคำถามก็ระบุได้ `questionCount`
 - input เยอะใช้เวลานานนิดนึง
 
@@ -23,7 +24,8 @@ curl -X POST http://localhost:3000/api/quizzes/generate \
   -F "ownerId=..." \
   -F "questionCount=5" \
   -F "difficulty=INTERMEDIATE" \
-  -F "file=@C:\\target\file"
+  -F "questionType=TRUE_FALSE" \
+  -F "file=@C:\\target\\file"
 ```
 
 ถ้าเป็นแบบ raw text ใส่แบบนี้
@@ -35,7 +37,8 @@ curl -X POST http://localhost:3000/api/quizzes/generate \
     "ownerId": "...",
     "text": "<your long text>",
     "questionCount": 5,
-    "difficulty": "INTERMEDIATE"
+    "difficulty": "INTERMEDIATE",
+    "questionType": "MULTIPLE_CHOICE"
   }'
 ```
 

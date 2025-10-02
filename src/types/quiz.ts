@@ -8,5 +8,6 @@ export type IncomingGeneratePayload = {
   pdfBase64?: string
   questionCount?: number
   difficulty?: Difficulty
+  questionType?: 'MULTIPLE_CHOICE' | 'TRUE_FALSE'
 }
 

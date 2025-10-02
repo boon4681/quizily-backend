@@ -9,6 +9,7 @@ const jsonInputSchema = z.object({
   pdfBase64: z.string().optional(),
   questionCount: z.number().int().min(1).max(50).optional(),
   difficulty: z.enum(['BEGINNER', 'INTERMEDIATE', 'EXPERT']).optional(),
+  questionType: z.enum(['MULTIPLE_CHOICE', 'TRUE_FALSE']).optional(),
   modelId: z.string().optional(),
   model: z.string().optional(),
 })
@@ -35,7 +36,9 @@ export const quizController = {
       let text: string | undefined
       let questionCount: number | undefined
       let difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT' | undefined
+      let questionType: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | undefined
       let modelId: string | undefined
+      questionType = parseQuestionType(c.req.query('questionType') || c.req.query('type')) || questionType
 
       if (contentType.includes('application/json')) {
         const body = await c.req.json()
@@ -46,11 +49,12 @@ export const quizController = {
         text = parsed.text
         questionCount = parsed.questionCount
         difficulty = parsed.difficulty
+        questionType = parsed.questionType ?? questionType
         modelId = (c.req.query('model') || c.req.query('modelId') || parsed.modelId || parsed.model || '') || undefined
         if (!text && parsed.pdfBase64) {
           // convert base64 to Buffer
           const buf = Buffer.from(parsed.pdfBase64, 'base64')
-          const created = await generateQuizService({ ownerId: ownerId!, title, description, pdfBuffer: buf, questionCount, difficulty, modelId })
+          const created = await generateQuizService({ ownerId: ownerId!, title, description, pdfBuffer: buf, questionCount, difficulty, questionType, modelId })
           return c.json({ quiz: created })
         }
       } else if (contentType.includes('multipart/form-data')) {
@@ -62,6 +66,8 @@ export const quizController = {
         questionCount = qCount ? Number(qCount) : undefined
         const diff = form.get('difficulty') as string | null
         difficulty = (diff as any) || undefined
+        const typeField = (form.get('questionType') ?? form.get('type')) as string | null
+        questionType = typeField ? parseQuestionType(typeField) ?? questionType : questionType
         modelId = ((c.req.query('model') || c.req.query('modelId') || (form.get('modelId') as string) || (form.get('model') as string) || '') as string).trim() || undefined
 
         const textField = (form.get('text') as string) || ''
@@ -72,7 +78,7 @@ export const quizController = {
           if (!file) return c.json({ message: 'Provide either text or file' }, 400)
           const arr = await (file.arrayBuffer?.() ?? Promise.reject(new Error('Invalid file')))
           const buf = Buffer.from(arr)
-          const created = await generateQuizService({ ownerId: ownerId!, title, description, pdfBuffer: buf, questionCount, difficulty, modelId })
+          const created = await generateQuizService({ ownerId: ownerId!, title, description, pdfBuffer: buf, questionCount, difficulty, questionType, modelId })
           return c.json({ quiz: created })
         }
       } else {
@@ -82,7 +88,7 @@ export const quizController = {
       if (!ownerId) return c.json({ message: 'ownerId is required' }, 400)
       if (!text || !text.trim()) return c.json({ message: 'No text content found to generate quiz' }, 400)
 
-      const created = await generateQuizService({ ownerId, title, description, text, questionCount, difficulty, modelId })
+      const created = await generateQuizService({ ownerId, title, description, text, questionCount, difficulty, questionType, modelId })
       return c.json({ quiz: created })
     } catch (err) {
       console.error(err)
@@ -160,3 +166,11 @@ export const quizController = {
   },
 }
 
+function parseQuestionType(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  if (!normalized) return undefined
+  if (normalized === 'TRUE_FALSE' || normalized === 'TRUEFALSE') return 'TRUE_FALSE'
+  if (normalized === 'MULTIPLE_CHOICE' || normalized === 'MULTIPLECHOICE') return 'MULTIPLE_CHOICE'
+  return undefined
+}

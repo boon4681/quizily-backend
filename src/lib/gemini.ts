@@ -15,6 +15,9 @@ export const GeneratedQuizSchema = z.object({
   questions: z.array(QuizQuestionSchema).min(1),
 })
 export type GeneratedQuiz = z.infer<typeof GeneratedQuizSchema>
+export type QuestionType = z.infer<typeof QuizQuestionSchema>['type']
+
+type GeneratedQuestion = GeneratedQuiz['questions'][number]
 
 // Helpers
 function getApiKey() {
@@ -81,6 +84,69 @@ async function summarizeIfLarge(genAI: GoogleGenerativeAI, models: string[], tex
   return 'Key points for quiz generation:\n' + bullets.slice(0, 80).map((b) => `- ${b}`).join('\n')
 }
 
+function buildQuestionTypeInstructions(questionType?: QuestionType) {
+  if (questionType === 'TRUE_FALSE') {
+    return [
+      'Every question must be TRUE_FALSE.',
+      'Each TRUE_FALSE question must present the statement with exactly two options: "True" and "False".',
+    ]
+  }
+  if (questionType === 'MULTIPLE_CHOICE') {
+    return [
+      'Every question must be MULTIPLE_CHOICE.',
+      'Each MULTIPLE_CHOICE question must have 3-5 answer options with exactly one correct answer.',
+    ]
+  }
+  return [
+    'Prefer MULTIPLE_CHOICE; TRUE_FALSE only when fitting.',
+    'Each MULTIPLE_CHOICE question must have 3-5 options with exactly one correct answer.',
+  ]
+}
+
+function normalizeQuestion(question: GeneratedQuestion, forcedType?: QuestionType): GeneratedQuestion {
+  const base =
+    question.type === 'TRUE_FALSE'
+      ? normalizeTrueFalseQuestion(question)
+      : normalizeMultipleChoiceQuestion(question)
+  if (!forcedType || forcedType === base.type) {
+    return base
+  }
+  return forcedType === 'TRUE_FALSE'
+    ? normalizeTrueFalseQuestion(base)
+    : normalizeMultipleChoiceQuestion(base)
+}
+
+function normalizeMultipleChoiceQuestion(question: GeneratedQuestion): GeneratedQuestion {
+  const options =
+    question.options.length > 0
+      ? question.options
+      : [
+          { text: 'True', isCorrect: true },
+          { text: 'False', isCorrect: false },
+        ]
+  let correctIndex = options.findIndex((o) => o.isCorrect)
+  if (correctIndex < 0) correctIndex = 0
+  const normalizedOptions = options.map((o, idx) => ({ text: o.text, isCorrect: idx === correctIndex }))
+  return {
+    ...question,
+    type: 'MULTIPLE_CHOICE',
+    options: normalizedOptions,
+  }
+}
+
+function normalizeTrueFalseQuestion(question: GeneratedQuestion): GeneratedQuestion {
+  const correct = question.options.find((o) => o.isCorrect)
+  const trueIsCorrect = correct ? /true/i.test(correct.text) : true
+  return {
+    ...question,
+    type: 'TRUE_FALSE',
+    options: [
+      { text: 'True', isCorrect: trueIsCorrect },
+      { text: 'False', isCorrect: !trueIsCorrect },
+    ],
+  }
+}
+
 // Main
 export async function generateQuizFromText(params: {
   text: string
@@ -89,17 +155,34 @@ export async function generateQuizFromText(params: {
   questionCount?: number
   difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'
   modelId?: string
+  questionType?: QuestionType
 }): Promise<GeneratedQuiz> {
-  const { text, title, description, questionCount = 5, difficulty = 'BEGINNER', modelId } = params
+  const {
+    text,
+    title,
+    description,
+    questionCount = 5,
+    difficulty = 'BEGINNER',
+    modelId,
+    questionType,
+  } = params
   const genAI = new GoogleGenerativeAI(getApiKey())
-  const models = [modelId?.trim(), process.env.GEMINI_MODEL_ID?.trim(), 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-2.5-flash', 'gemini-2.5-pro'].filter(Boolean) as string[]
+  const models = [
+    modelId?.trim(),
+    process.env.GEMINI_MODEL_ID?.trim(),
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash',
+    'gemini-2.0-pro',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+  ].filter(Boolean) as string[]
 
   const baseText = await summarizeIfLarge(genAI, models, text)
   const prompt = [
     'You are a quiz generator. Output ONLY JSON.',
     `Generate ${questionCount} questions. Difficulty: ${difficulty}.`,
-    'Prefer MULTIPLE_CHOICE; TRUE_FALSE only when fitting.',
-    'Each MCQ must have 3-5 options with exactly one correct.',
+    ...buildQuestionTypeInstructions(questionType),
     '{',
     '  "title": string,',
     '  "description": string (optional),',
@@ -111,7 +194,9 @@ export async function generateQuizFromText(params: {
     description ? `Use/adjust this description: ${description}` : '',
     'Content to base the quiz on:',
     baseText,
-  ].filter(Boolean).join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   const res = await generateWithRetry(genAI, models, prompt)
   const jsonStr = extractFirstJson(res.response.text())
@@ -119,14 +204,7 @@ export async function generateQuizFromText(params: {
 
   const normalized: GeneratedQuiz = {
     ...data,
-    questions: data.questions.map((q) => {
-      if (q.type === 'MULTIPLE_CHOICE') {
-        const i = Math.max(0, q.options.findIndex((o) => o.isCorrect))
-        return { ...q, options: q.options.map((o, idx) => ({ ...o, isCorrect: idx === i })) }
-      }
-      const trueIsCorrect = q.options.some((o) => o.isCorrect && /true/i.test(o.text)) || !q.options.some((o) => o.isCorrect)
-      return { ...q, options: [ { text: 'True', isCorrect: trueIsCorrect }, { text: 'False', isCorrect: !trueIsCorrect } ] }
-    }),
+    questions: data.questions.map((q) => normalizeQuestion(q, questionType)),
   }
   return normalized
 }
