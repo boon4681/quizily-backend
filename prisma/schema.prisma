@@ -93,7 +93,7 @@ model Quiz {
 
     ownerId String @db.ObjectId
     owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-
+    shareToken String?
     questions Question[]
 
     @@map("quiz")
