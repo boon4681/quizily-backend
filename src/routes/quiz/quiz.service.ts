@@ -1,7 +1,7 @@
 import { createPartFromUri, Files, GoogleGenAI, Type, type ContentListUnion } from '@google/genai';
 import type { Context } from 'hono'
 import type { CREATE_QUIZ_BODY } from './quiz.validator.js';
-import { STRUCTURED_OUTPUT_V1, TEMPLATE_BINARY_QUESTION } from './quiz.constant.js';
+import { STRUCTURED_BINARY_QUIZ_OUTPUT_V1, TEMPLATE_BINARY_QUESTION, TEMPLATE_MULTIPLE_CHOICES_QUESTION } from './quiz.constant.js';
 import { QuestionType, QuizState, type Prisma } from '@prisma/client';
 import { prisma } from '$database';
 import T from "typebox"
@@ -40,68 +40,81 @@ export async function UploadResource(resource: File) {
 }
 
 export async function GenerateQuiz(quiz: { id: string }, body: CREATE_QUIZ_BODY) {
-    if (body.type == "binary") {
-        if (body.resource_type == "document") {
-            console.log("GENERATE")
-            let start = Date.now()
+    console.log("GENERATE")
+    let start = Date.now()
+    const contents: ContentListUnion = []
+    switch (body.type) {
+        case "binary": {
+            contents.push(TEMPLATE_BINARY_QUESTION())
+            break
+        }
+        case "multiple": {
+            contents.push(TEMPLATE_MULTIPLE_CHOICES_QUESTION())
+            break
+        }
+    }
+    switch (body.resource_type) {
+        case "document": {
             const files = [body.files].flat()
-            const contents: ContentListUnion = [
-                TEMPLATE_BINARY_QUESTION()
-            ]
             for (const resource of files) {
                 const part = await UploadResource(resource)
                 if (part) contents.push(part)
             }
+            break
+        }
+        case "text": {
+            contents.push(body.content)
+            break
+        }
+    }
 
-            const struct = STRUCTURED_OUTPUT_V1(body.amount)
-            type struct = T.Static<typeof struct>
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: contents,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: struct
-                }
-            }).catch(a => false as false);
-            if (!response || !response.text) {
-                await prisma.quiz.update({
-                    where: {
-                        id: quiz.id
-                    },
-                    data: {
-                        state: QuizState.ERROR
-                    }
-                })
-                return;
+    const struct = STRUCTURED_BINARY_QUIZ_OUTPUT_V1(body.amount)
+    type struct = T.Static<typeof struct>
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: struct
+        }
+    }).catch(a => false as false);
+    if (!response || !response.text) {
+        await prisma.quiz.update({
+            where: {
+                id: quiz.id
+            },
+            data: {
+                state: QuizState.ERROR
             }
-            if (response.text) {
-                const json = JSON.parse(response.text) as struct
-                await prisma.quiz.update({
-                    where: {
-                        id: quiz.id
-                    },
-                    data: {
-                        title: json.name,
-                        emoji: json.emoji,
-                        questions: json.questions.map(a => {
+        })
+        return;
+    }
+    if (response.text) {
+        const json = JSON.parse(response.text) as struct
+        await prisma.quiz.update({
+            where: {
+                id: quiz.id
+            },
+            data: {
+                title: json.name,
+                emoji: json.emoji,
+                questions: json.questions.map(a => {
+                    return {
+                        id: createId(),
+                        title: a.title,
+                        type: QuestionType.TRUE_FALSE,
+                        options: a.options.map(a => {
                             return {
                                 id: createId(),
-                                title: a.title,
-                                type: QuestionType.TRUE_FALSE,
-                                options: a.options.map(a => {
-                                    return {
-                                        id: createId(),
-                                        text: a.text,
-                                        isCorrect: a.is_correct
-                                    }
-                                })
+                                text: a.text,
+                                isCorrect: a.is_correct
                             }
-                        }),
-                        state: QuizState.FINISHED
+                        })
                     }
-                })
-                console.log("DONE", Date.now() - start)
+                }),
+                state: QuizState.FINISHED
             }
-        }
+        })
+        console.log("DONE", Date.now() - start)
     }
 }
