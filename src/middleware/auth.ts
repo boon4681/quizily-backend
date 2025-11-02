@@ -1,7 +1,7 @@
 import { auth, type AuthUserData, type AuthUserSession } from "../auth.config.js";
 import { createMiddleware } from 'hono/factory'
 
-type AuthEnvironment = {
+export type AuthEnvironment = {
     Variables: {
         user: AuthUserData | null;
         session: AuthUserSession | null;

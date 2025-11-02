@@ -17,6 +17,9 @@
             ],
             "$auth.config": [
                 "./src/auth.config.ts"
+            ],
+            "$database":[
+                "./src/database.ts"
             ]
         }
     },

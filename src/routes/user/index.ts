@@ -1,10 +1,13 @@
 import { auth } from '$auth.config';
+import { RequiredAuthMiddleware, type AuthEnvironment } from '$middleware/auth.js';
 import { Hono } from 'hono'
 
-const app = new Hono()
+const app = new Hono<AuthEnvironment>()
 
-app.on(["POST", "GET"], "/auth/*", (c) => {
-    return auth.handler(c.req.raw);
-});
+app.use("*", RequiredAuthMiddleware)
 
-export { app as APIAuth }
+app.get("/user/@me", (c) => {
+    return c.json(c.get("user"))
+})
+
+export { app as APIUser }

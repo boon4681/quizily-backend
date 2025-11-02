@@ -18,10 +18,11 @@ enum QuestionType {
     TRUE_FALSE
 }
 
-enum QuestionDifficulty {
-    BEGINNER
-    INTERMEDIATE
-    EXPERT
+enum QuizState {
+    PENDING
+    PROCESSING
+    FINISHED
+    ERROR
 }
 
 model User {
@@ -86,39 +87,36 @@ model Verification {
 }
 
 model Quiz {
-    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    id          String     @id @default(uuid()) @map("_id")
     title       String
     description String?
-    createdAt   DateTime @default(now())
+    state       QuizState
+    emoji       QuizEmoji[]
+    questions   Question[]
+    share       Boolean    @default(false)
+    shareId     String?
+    createdAt   DateTime   @default(now())
 
     ownerId String @db.ObjectId
     owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-    questions Question[]
-
     @@map("quiz")
 }
 
-model Question {
-    id     String       @id @default(auto()) @map("_id") @db.ObjectId
-    text   String
-    type   QuestionType
-    order  Int
-    quizId String       @db.ObjectId
-    quiz   Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
-    options QuestionOption[]
-
-    @@map("question")
+type QuizEmoji {
+    category String
+    emoji    String
 }
 
-model QuestionOption {
-    id        String  @id @default(auto()) @map("_id") @db.ObjectId
+type Question {
+    id      String
+    title   String
+    type    QuestionType
+    options QuestionOption[]
+}
+
+type QuestionOption {
+    id        String
     text      String
     isCorrect Boolean @default(false)
-
-    questionId String   @db.ObjectId
-    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-    @@map("question-option")
 }
