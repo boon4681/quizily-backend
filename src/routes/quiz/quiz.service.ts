@@ -102,7 +102,7 @@ export async function GenerateQuiz(quiz: { id: string }, body: CREATE_QUIZ_BODY)
                     return {
                         id: createId(),
                         title: a.title,
-                        type: QuestionType.TRUE_FALSE,
+                        type: body.type == "binary" ? QuestionType.TRUE_FALSE : QuestionType.MULTIPLE_CHOICE,
                         options: a.options.map(a => {
                             return {
                                 id: createId(),
